@@ -71,69 +71,34 @@ async def _ws_run(websocket: WebSocket, fn, req):
 # ─────────────────────────────────────────────────────────────────
 #  DE optimizer  (WebSocket — replaces the old blocking POST)
 # ─────────────────────────────────────────────────────────────────
-
 @router.websocket("/optimize/de")
 async def optimize_de_ws(websocket: WebSocket):
     """
     WebSocket endpoint for the DE (sizing + shape) optimizer.
     Streams per-generation progress; safe on any cloud platform.
     """
+    # 1. CRITICAL FIX: Accept the connection first!
+    await websocket.accept()
+    
     try:
         raw = await websocket.receive_text()
         req = DEOptRequest.model_validate_json(raw)
     except Exception as e:
-        await websocket.accept()
+        # Since we already accepted above, we don't need to call accept() here anymore
         await websocket.send_json({"type": "error", "message": f"Bad request: {e}"})
         await websocket.close()
         return
 
     # Wrap run_de_optimizer to accept the progress_cb signature
     def _de_with_cb(req, progress_cb):
-        # Inject progress callback into the existing TrussOptimizer
-        from ai_optimizer import TrussOptimizer
-        from services.truss_service import _build_ts
-
-        combos_ts = []
-        for combo in req.solve_request.combos:
-            ts = _build_ts(req.solve_request, combo.factors)
-            ts.solve() if req.solve_request.analysis_type != "nonlinear" \
-                else ts.solve_nonlinear(load_steps=req.solve_request.load_steps)
-            combos_ts.append(ts)
-
-        orig_weight = sum(m.A * m.L * 7850 for m in combos_ts[0].members)
-
-        shape_bounds_dict = {
-            int(nid): [sb.dx_min, sb.dx_max, sb.dy_min, sb.dy_max, sb.dz_min, sb.dz_max]
-            for nid, sb in req.shape_bounds.items()
-        }
-
-        opt = TrussOptimizer(
-            base_combos    = combos_ts,
-            member_groups  = req.member_groups,
-            shape_bounds   = shape_bounds_dict,
-            yield_stress   = req.yield_stress,
-            max_deflection = req.max_deflection,
-        )
-
-        # Patch the callback to emit WS progress
-        _orig_cb = opt._callback
-        def _cb(xk, convergence=None):
-            _orig_cb(xk, convergence)
-            if opt.history:
-                progress_cb({"type": "progress", "phase": 2,
-                             "iteration": len(opt.history),
-                             "best": opt.history[-1]})
-
-        opt._callback = _cb
-        sections, shifts, weight, is_valid, history = opt.optimize(
-            pop_size=req.pop_size, max_gen=req.max_gen
-        )
-
+        # ... (Keep all your existing optimizer compilation logic exactly the same) ...
+        
+        sections, shifts, weight, is_valid, history = opt.optimize(pop_size=req.pop_size, max_gen=req.max_gen)
+        
         from models import OptResult, SectionAssignment, NodeShift
         return OptResult(
             sections=[SectionAssignment(member_id=k, section=v) for k, v in sections.items()],
-            node_shifts=[NodeShift(node_id=k, dx=v["dx"], dy=v["dy"], dz=v["dz"])
-                         for k, v in shifts.items()],
+            node_shifts=[NodeShift(node_id=k, dx=v["dx"], dy=v["dy"], dz=v["dz"]) for k, v in shifts.items()],
             topology={m.id: True for m in combos_ts[0].members},
             weight_kg=round(weight, 3),
             orig_weight_kg=round(orig_weight, 3),
@@ -142,8 +107,8 @@ async def optimize_de_ws(websocket: WebSocket):
             hist_p2=[w for w in history if w < 1e6],
         )
 
+    # 2. Pass the authenticated websocket down to your helper runner
     await _ws_run(websocket, _de_with_cb, req)
-
 
 # ─────────────────────────────────────────────────────────────────
 #  GA-MINLP optimizer  (WebSocket with live progress stream)
