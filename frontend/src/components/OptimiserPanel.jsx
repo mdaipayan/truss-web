@@ -2,7 +2,7 @@
  * OptimiserPanel.jsx — Three modes: DE, GA-MINLP, All
  * Adds Run All + comparison table + Generate Full Report button
  */
-import { useState }      from 'react'
+import { useRef, useState }      from 'react'
 import Plot              from 'react-plotly.js'
 import { useStore }      from '../store'
 import { runDE, runGAMINLP, generateReport } from '../api/client'
@@ -92,6 +92,7 @@ export default function OptimiserPanel({ onSolveFirst }) {
   const [status,  setStatus]  = useState('')
   const [proj,    setProj]    = useState('Space Truss Analysis')
   const [repLoad, setRepLoad] = useState(false)
+  const stopRequestedRef       = useRef(false)
 
   function mkGroups() {
     const raw = groupsStr.trim()
@@ -106,33 +107,43 @@ export default function OptimiserPanel({ onSolveFirst }) {
 
   async function runSingle(m) {
     if (!solveResult) { await onSolveFirst(); return }
+    stopRequestedRef.current = false
     clearOptProgress(); setOptError(null); setOptRunning(true)
     try {
       const p=base(); let result
-      if (m==='de') { p.pop_size=dePop; p.max_gen=deGen; result=await runDE(p, msg=>pushOptProgress(msg)) }
+      if (m==='de') { p.pop_size=dePop; p.max_gen=deGen; result=await runDE(p, msg=>!stopRequestedRef.current&&pushOptProgress(msg)) }
       else { p.ga_pop=gaPop; p.ga_gen=gaGen; p.minlp_pop=mpPop; p.minlp_gen=mpGen; p.n_elite=elite
-             result=await runGAMINLP(p, msg=>pushOptProgress(msg)) }
+             result=await runGAMINLP(p, msg=>!stopRequestedRef.current&&pushOptProgress(msg)) }
+      if (stopRequestedRef.current) return
       setOptResult(result)
-    } catch(e) { setOptError(e.message) }
-    finally { setOptRunning(false) }
+    } catch(e) {
+      if (!stopRequestedRef.current) setOptError(e.message)
+    } finally { setOptRunning(false) }
   }
 
   async function runAll() {
     if (!solveResult) { await onSolveFirst(); return }
+    stopRequestedRef.current = false
     clearOptProgress(); clearAllOptResults(); setOptError(null); setOptRunning(true)
     const methods=[{key:'de',label:'DE Optimizer'},{key:'ga-minlp',label:'GA-MINLP'}]
     const collected=[]
     for (const {key,label} of methods) {
+      if (stopRequestedRef.current) break
       setStatus(`Running ${label}…`)
       try {
         const p=base(); let result
-        if (key==='de') { p.pop_size=dePop; p.max_gen=deGen; result=await runDE(p,msg=>pushOptProgress({...msg,method:key})) }
+        if (key==='de') { p.pop_size=dePop; p.max_gen=deGen; result=await runDE(p,msg=>!stopRequestedRef.current&&pushOptProgress({...msg,method:key})) }
         else { p.ga_pop=gaPop; p.ga_gen=gaGen; p.minlp_pop=mpPop; p.minlp_gen=mpGen; p.n_elite=elite
-               result=await runGAMINLP(p,msg=>pushOptProgress({...msg,method:key})) }
+               result=await runGAMINLP(p,msg=>!stopRequestedRef.current&&pushOptProgress({...msg,method:key})) }
+        if (stopRequestedRef.current) break
         const item={method:label,result}; collected.push(item); pushAllOptResult(item); setOptResult(result)
-      } catch(e) { pushAllOptResult({method:label,result:null,error:e.message}) }
+      } catch(e) {
+        if (!stopRequestedRef.current) pushAllOptResult({method:label,result:null,error:e.message})
+      }
     }
-    setAllOptResults(collected); setStatus('All methods complete'); setOptRunning(false)
+    setAllOptResults(collected)
+    setStatus(stopRequestedRef.current ? 'Run stopped by user' : 'All methods complete')
+    setOptRunning(false)
   }
 
   async function doReport() {
@@ -209,7 +220,7 @@ export default function OptimiserPanel({ onSolveFirst }) {
           onClick={()=>mode==='all'?runAll():runSingle(mode)}>
           {optRunning?`⏳ ${status||'Running…'}`:mode==='all'?'🔁 Run All Methods':mode==='de'?'🚀 Run DE':'🧬 Run GA-MINLP'}
         </button>
-        {optRunning&&<button className="btn btn-danger" onClick={()=>setOptRunning(false)}>■</button>}
+        {optRunning&&<button className="btn btn-danger" onClick={()=>{ stopRequestedRef.current = true; setOptRunning(false); setStatus('Stopping…') }}>■</button>}
       </div>
 
       {optError&&<div style={{padding:8,background:'rgba(239,68,68,.1)',border:'1px solid rgba(239,68,68,.3)',
