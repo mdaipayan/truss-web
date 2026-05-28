@@ -27,12 +27,12 @@ function ComparisonTable({ results }) {
   const rows = [
     ['Optimised weight (kg)', results.map(r => (r.result?.weight_kg??0).toFixed(2))],
     ['Weight saved (%)',       results.map(r => {
-      const w=r.result?.weight_kg??origW; return ((origW-w)/origW*100).toFixed(1)+'%'
+       const w = r.result?.weight_kg ?? origW; return ((origW-w)/origW*100).toFixed(1)+'%'
     })],
     ['IS 800 compliant',      results.map(r => r.result?.is_valid?'✅ Yes':'⚠️ Violated')],
     ['Members removed',       results.map(r => {
-      const n=Object.values(r.result?.topology??{}).filter(v=>!v).length
-      return n>0?`${n} removed`:'All retained'
+       const n = Object.values(r.result?.topology??{}).filter(v=>!v).length
+       return n>0?`${n} removed`:'All retained'
     })],
   ]
   return (
