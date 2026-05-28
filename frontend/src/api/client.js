@@ -70,17 +70,35 @@ export async function generateReport(payload) {
 
 export function runDE(req, onProgress) {
   return new Promise((resolve, reject) => {
+    let settled = false
+
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
     const ws    = new WebSocket(`${proto}://${window.location.host}/api/optimize/de`)
-    ws.onopen    = () => ws.send(JSON.stringify(req))
+
+    ws.onopen = () => ws.send(JSON.stringify(req))
+
     ws.onmessage = (e) => {
       const msg = JSON.parse(e.data)
-      if      (msg.type === 'result') { ws.close(); resolve(msg.result) }
-      else if (msg.type === 'error')  { ws.close(); reject(new Error(msg.message)) }
-      else    onProgress?.(msg)
+      if (msg.type === 'result') {
+        settled = true
+        ws.close()
+        resolve(msg.result)
+      } else if (msg.type === 'error') {
+        settled = true
+        ws.close()
+        reject(new Error(msg.message))
+      } else {
+        onProgress?.(msg)
+      }
     }
-    ws.onerror = () => reject(new Error('WebSocket error'))
-    ws.onclose = () => reject(new Error('WebSocket closed unexpectedly'))
+
+    ws.onerror = () => {
+      if (!settled) reject(new Error('WebSocket error'))
+    }
+
+    ws.onclose = () => {
+      if (!settled) reject(new Error('WebSocket closed unexpectedly'))
+    }
   })
 }
 
@@ -98,6 +116,8 @@ export function runDE(req, onProgress) {
  */
 export function runGAMINLP(req, onProgress) {
   return new Promise((resolve, reject) => {
+    let settled = false
+
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
     const host  = window.location.host          // e.g. localhost:5173
     const ws    = new WebSocket(`${proto}://${host}/api/optimize/ga-minlp`)
@@ -109,9 +129,11 @@ export function runGAMINLP(req, onProgress) {
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data)
       if (msg.type === 'result') {
+        settled = true
         ws.close()
         resolve(msg.result)
       } else if (msg.type === 'error') {
+        settled = true
         ws.close()
         reject(new Error(msg.message))
       } else {
@@ -119,13 +141,13 @@ export function runGAMINLP(req, onProgress) {
       }
     }
 
-    ws.onerror = (e) => {
-      reject(new Error('WebSocket error — is the backend running?'))
+    ws.onerror = () => {
+      if (!settled) reject(new Error('WebSocket error — is the backend running?'))
     }
 
     ws.onclose = () => {
       // If closed without resolve/reject (e.g. server restart), reject
-      reject(new Error('WebSocket closed unexpectedly'))
+      if (!settled) reject(new Error('WebSocket closed unexpectedly'))
     }
   })
 }
