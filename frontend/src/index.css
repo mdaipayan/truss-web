@@ -1,0 +1,134 @@
+/* index.css — global styles */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-base:    #0f1117;
+  --bg-panel:   #1a1d27;
+  --bg-card:    #21263a;
+  --bg-input:   #2a2f45;
+  --border:     #343a52;
+  --accent:     #6366f1;   /* indigo */
+  --accent-alt: #10b981;   /* emerald */
+  --danger:     #ef4444;
+  --warn:       #f59e0b;
+  --text-1:     #f0f2ff;
+  --text-2:     #9ba3c4;
+  --text-3:     #5c6480;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--bg-base);
+  color: var(--text-1);
+  font-size: 13px;
+  overflow-x: hidden;
+}
+
+/* ── Scrollbars ─────────────────────────────────── */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-panel); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── Editable table ─────────────────────────────── */
+.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.data-table th {
+  background: var(--bg-card);
+  color: var(--text-2);
+  padding: 5px 8px;
+  text-align: left;
+  font-weight: 500;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.data-table td {
+  padding: 2px 4px;
+  border-bottom: 1px solid var(--border);
+}
+.data-table td input,
+.data-table td select {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text-1);
+  padding: 3px 4px;
+  font-size: 12px;
+  outline: none;
+}
+.data-table td input:focus,
+.data-table td select:focus {
+  background: var(--bg-input);
+  border-radius: 3px;
+}
+.data-table tr:hover td { background: rgba(99,102,241,0.06); }
+.data-table .row-del {
+  width: 24px; text-align: center;
+  cursor: pointer; color: var(--text-3);
+}
+.data-table .row-del:hover { color: var(--danger); }
+
+/* ── Buttons ────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 6px;
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  border: 1px solid transparent; transition: all .15s;
+}
+.btn-primary  { background: var(--accent);     color: #fff; }
+.btn-primary:hover  { filter: brightness(1.15); }
+.btn-success  { background: var(--accent-alt); color: #fff; }
+.btn-success:hover  { filter: brightness(1.15); }
+.btn-ghost    { background: transparent; border-color: var(--border); color: var(--text-2); }
+.btn-ghost:hover    { background: var(--bg-card); color: var(--text-1); }
+.btn-danger   { background: var(--danger); color: #fff; }
+.btn-sm       { padding: 4px 10px; font-size: 11px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── Cards ──────────────────────────────────────── */
+.card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.card-header {
+  background: var(--bg-card);
+  padding: 10px 14px;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-2);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-body { padding: 12px; }
+
+/* ── Metric chips ───────────────────────────────── */
+.metric { text-align: center; padding: 10px 14px; }
+.metric-val { font-size: 22px; font-weight: 700; color: var(--text-1); }
+.metric-lbl { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+/* ── Status badges ──────────────────────────────── */
+.badge {
+  display: inline-block;
+  padding: 2px 8px; border-radius: 100px;
+  font-size: 11px; font-weight: 500;
+}
+.badge-ok      { background: rgba(16,185,129,.15); color: #10b981; }
+.badge-warn    { background: rgba(245,158,11,.15);  color: #f59e0b; }
+.badge-danger  { background: rgba(239,68,68,.15);   color: #ef4444; }
+.badge-neutral { background: rgba(156,163,175,.1);  color: var(--text-2); }
+
+/* ── Progress bar ───────────────────────────────── */
+.progress-wrap { background: var(--bg-card); border-radius: 4px; height: 6px; overflow: hidden; }
+.progress-bar  { height: 100%; background: var(--accent); border-radius: 4px; transition: width .3s; }
+
+/* ── Tabs ───────────────────────────────────────── */
+.tabs { display: flex; border-bottom: 1px solid var(--border); gap: 2px; }
+.tab  { padding: 8px 16px; cursor: pointer; font-size: 12px; color: var(--text-2);
+        border-bottom: 2px solid transparent; transition: all .15s; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab:hover:not(.active) { color: var(--text-1); }
